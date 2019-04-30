@@ -31,51 +31,43 @@ const int I2CSlaveAddress = 8;      // I2C Address.
 
 //Pin numbers definition
 const int motorEnableLeft = 9;
+const int motorEnableRight = 11;
 const int motorForwardLeft = 7;
 const int motorBackLeft = 8;
-const int motorEnableRight = 11;
 const int motorForwardRight = 12;
 const int motorBackRight = 10;
-const int trigPinFront = A1;
-const int echoPinFront = 2;
-const int trigPinLeft = 3;
-const int echoPinLeft = 4;
-const int trigPinRight = 5;
-const int echoPinRight = 6;
-const int irPin = A0;
+//Motor Variables
+int leftMotorSpeed = 160;
+int rightMotorSpeed = 255;
+const float maxSpeed = 2.0;
+const float minSpeed = 1.0;
+const float delayTime = 1.0;
 
-//Variables for the Motors (could change)*****
-const int leftMotorSpeed = 160; 
-const int rightMotorSpeed = 255;
-const int delayTime = 150;
-
-//Variables for Ultrasonic Sensors (could change)*****
-long durationFront;
-int distanceFront;
-long durationLeft;
-int distanceLeft;
-long durationRight;
-int distanceRight;
+//Sensor Pins
+const int dhtPin =  P2_3;
+const int ap1 = A5;
+const int ap2 = A4;
+const int ap3 = A3;
+const int I2CSlaveAddress = 8;
+//Sensor Varibles
+float distanceFront, distanceLeft, distanceRight;
 const int minFrontDistance = 30;
 const int minSideDistance = 20;
 const int stuckDistance = 10;
-
-//Variables for IR Sensor
-#include <IRremote.h>
-IRrecv irrecv(irPin);
-decode_results results;
-boolean onoff = 0;
-//Control IR numbers (could change)*******
-const long PLAY = 16761405;
-const long PREV = 16720605;
+float xa = 0.0;
+float ya = 0.0;
+float za = 0.0;
+float yaw, pitch, roll; //TODO eliminate the ones that are not needed
+float t;
+float v;
 
 //Variables fro I2C
 int place;
 byte dist[3];
 long entryP = 0;
 
-//Anibal's note: de aqui en adelante estan la programacion basica para las direcciones 
 
+//Directions
 void stopCar () {
   digitalWrite(motorForwardLeft, LOW);
   digitalWrite(motorBackLeft, LOW);
@@ -86,47 +78,41 @@ void stopCar () {
 }
 
 void goForwardFull () {
+  stopCar();
   digitalWrite(motorForwardLeft, HIGH);
-  digitalWrite(motorBackLeft, LOW);
   digitalWrite(motorForwardRight, HIGH);
-  digitalWrite(motorBackRight, LOW);
   analogWrite(motorEnableLeft, leftMotorSpeed);
   analogWrite(motorEnableRight, rightMotorSpeed);
 }
 
 void goLeft () {
-  digitalWrite(motorForwardLeft, LOW);
-  digitalWrite(motorBackLeft, LOW);
+  stopCar();
   digitalWrite(motorForwardRight, HIGH);
-  digitalWrite(motorBackRight, LOW);
-  analogWrite(motorEnableLeft, 0);
   analogWrite(motorEnableRight, rightMotorSpeed);
 }
 
 void goRight () {
+  stopCar();
   digitalWrite(motorForwardLeft, HIGH);
-  digitalWrite(motorBackLeft, LOW);
-  digitalWrite(motorForwardRight, LOW);
-  digitalWrite(motorBackRight, LOW);
   analogWrite(motorEnableLeft, leftMotorSpeed);
-  analogWrite(motorEnableRight, 0);
 }
 
 void goBack () {
-  digitalWrite(motorForwardLeft, LOW);
+  stopCar();
   digitalWrite(motorBackLeft, HIGH);
-  digitalWrite(motorForwardRight, LOW);
   digitalWrite(motorBackRight, HIGH);
   analogWrite(motorEnableLeft, leftMotorSpeed);
   analogWrite(motorEnableRight, rightMotorSpeed);
 }
 
+//Sensor Functions
 float getSpeedOfSound() {
   dht DHT11(dhtPin);
   uint8_t rawtemperature, rawhumidity, checksum;
   checksum = DHT11.readRawData(&rawtemperature, &rawhumidity);
   if (checksum != 0)
     return 340.3; //Return default value in case of error with sensor.
+  }
   if(DHT_DEBUG){
     DEBUG_PRINT("T: ");
     DEBUG_PRINT(rawtemperature);
@@ -177,10 +163,9 @@ void RequestATTiny(){
   Serial.print(dist[2]);
   Serial.print(" ");
   Serial.println();
-  delay(200);
 }
 
-byte readTiny(int address) {
+float readTiny(int address) {
   byte byteData ;
   long entry = millis();
 
@@ -188,91 +173,78 @@ byte readTiny(int address) {
   Wire.requestFrom(address, 1);
   while (Wire.available() == 0 && (millis() - entry) < 100)  Serial.print("W");
   if  (millis() - entry < 100) byteData = Wire.read();
-  return byteData;
+  return ((float)byteData);
 }
-//Anibal's note: la parte de los sensores lo saque del internet, para tenerlos de una vez. Lo puedes modificar para que funcione con nuestro robot si es necesario
+
+void updateGyro() {
+  analogReference(DEFAULT);
+  float svx = analogRead(ap1);
+  float svy = analogRead(ap2);
+  float svz = analogRead(ap3);
+
+  xa = (((svx * 3.3) / 1024) - 1.65) / 0.330;
+  ya = (((svy * 3.3) / 1024) - 1.65) / 0.330;
+  za = (((svz * 3.3) / 1024) - 1.65) / 0.330;
+
+  roll = atan2(ya, za) * 57.29577951 + 180;
+  pitch = atan2(za, xa) * 57.29577951 + 180;
+  yaw = atan2(xa, ya) * 57.29577951 + 180;
+}
 
 void sensorRead () {
-  //Read front sensor value
-  digitalWrite(trigPinFront, LOW);
-  delayMicroseconds(2);
-  digitalWrite(trigPinFront, HIGH);
-  delayMicroseconds(10);
-  digitalWrite(trigPinFront, LOW);
-  durationFront = pulseIn(echoPinFront, HIGH);
-  distanceFront = durationFront * 0.034 / 2;
-  //Read left sensor value
-  digitalWrite(trigPinLeft, LOW);
-  delayMicroseconds(2);
-  digitalWrite(trigPinLeft, HIGH);
-  delayMicroseconds(10);
-  digitalWrite(trigPinLeft, LOW);
-  durationLeft = pulseIn(echoPinLeft, HIGH);
-  distanceLeft = durationLeft * 0.034 / 2;
-  //Read right sensor value
-  digitalWrite(trigPinRight, LOW);
-  delayMicroseconds(2);
-  digitalWrite(trigPinRight, HIGH);
-  delayMicroseconds(10);
-  digitalWrite(trigPinRight, LOW);
-  durationRight = pulseIn(echoPinRight, HIGH);
-  distanceRight = durationRight * 0.034 / 2;
+  float s = getSpeedOfSound();
+  distanceLeft = readTiny(I2CSlaveAddress) * s;
+  distanceFront = readTiny(I2CSlaveAddress) * s;
+  distanceRight = readTiny(I2CSlaveAddress) * s;
+  updateGyro();
+  v = v + xa * (t - (millis() / 1000.0)); // TODO verify that this is xa
+  t = millis() / 1000.0;
+}
+void fixSpeed() {
+  if (v > maxSpeed) {
+    leftMotorSpeed -= 5;
+    rightMotorSpeed -= 5;
+  } else if (v < minSpeed) {
+    leftMotorSpeed += 5;
+    rightMotorSpeed += 5;
+  }
 }
 
-
+//Main
 void setup() {
-   Wire.begin();
+  Wire.begin();
   pinMode(motorEnableLeft, OUTPUT);
   pinMode(motorForwardLeft, OUTPUT);
   pinMode(motorBackLeft, OUTPUT);
   pinMode(motorEnableRight, OUTPUT);
   pinMode(motorForwardRight, OUTPUT);
   pinMode(motorBackRight, OUTPUT);
-  pinMode(trigPinFront, OUTPUT);
-  pinMode(echoPinFront, INPUT);
-  pinMode(trigPinLeft, OUTPUT);
-  pinMode(echoPinLeft, INPUT);
-  pinMode(trigPinRight, OUTPUT);
-  pinMode(echoPinRight, INPUT);
-  irrecv.enableIRIn();
+
+  t = millis() / 1000.0;
+  sensorRead();
 }
 
 void loop() {
   sensorRead();
-  if (irrecv.decode(&results)) {
-    irrecv.resume();
-    if (results.value == PLAY)
-      onoff = 1;
-    else if (results.value == PREV) // Anibal's note: Tengo entendido que una parte de aqui esta controlada por un control, por lo menos la parte de prende y abagar. Lo puedes modifacar como tu quieras
-      onoff = 0;
-  }
-  if (onoff == 1) {
-    results.value = 0;
-    if ((distanceFront <= minFrontDistance) || (distanceLeft <= minSideDistance) || (distanceRight <= minSideDistance)) {
-      if ((distanceLeft < stuckDistance) || (distanceRight < stuckDistance) || (distanceFront < stuckDistance)) {
-        goBack();
-        delay(1.5*delayTime);
-      }
-      else if ((distanceFront <= minFrontDistance) && (distanceLeft <= minSideDistance) && (distanceRight <= minSideDistance)) {
-        goBack();
-        delay(1.5*delayTime);
-      }
-      else if (distanceLeft > distanceRight ) {
-        goLeft();
-        delay(delayTime);
-      }
-      else if (distanceLeft <= distanceRight) {
-        goRight();
-        delay(delayTime);
-      }
-      else
-        goForwardFull();
+  fixSpeed();
+  if ((distanceFront <= minFrontDistance) || (distanceLeft <= minSideDistance) || (distanceRight <= minSideDistance)) {
+    if ((distanceLeft < stuckDistance) || (distanceRight < stuckDistance) || (distanceFront < stuckDistance)) {
+      goBack();
+      delay(1.5 * delayTime);
     }
-    else
-      goForwardFull();
+    else if ((distanceFront <= minFrontDistance) && (distanceLeft <= minSideDistance) && (distanceRight <= minSideDistance)) {
+      goBack();
+      delay(1.5 * delayTime);
+    }
+    else if (distanceLeft > distanceRight ) {
+      goLeft();
+      delay(delayTime);
+    }
+    else {
+      goRight();
+      delay(delayTime);
+    }
   }
-  else if (onoff == 0) {
-    results.value = 0;
-    stopCar();
-  }
+  else
+    goForwardFull();
 }

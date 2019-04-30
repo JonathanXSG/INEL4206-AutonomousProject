@@ -41,9 +41,10 @@ int8_t dht::readRawData(uint8_t *temperature, uint8_t *humidity) {
         bitSet(bits[j], i);
     }
   }
-        
+
 	//reset port
-	pinMode(_pin, INPUT);        
+	pinMode(_pin, INPUT);
+
 
 	if ((uint8_t)(bits[0] + bits[1] + bits[2] + bits[3]) == bits[4]) {
 		//return temperature and humidity
