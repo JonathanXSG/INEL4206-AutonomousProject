@@ -1,4 +1,5 @@
 #include "src/TinyWireS/TinyWireS.h"
+#include <NewPing.h>
 
 #define ULTRASONIC_LEFT_PIN PB1
 #define ULTRASONIC_MIDDLE_PIN PB3
@@ -8,10 +9,12 @@
 #define U_MIDDLE_INDEX 1
 #define U_RIGHT_INDEX 2
 
-
-// Max distance we will allow Ultrasound sensor to sens, so we can send
+// Max distance we will allow Ultrasound sensor to sense, so we can send
 // through the I2C bus
 #define MAX_DISTANCE 260
+
+// Milliseconds between pings.
+#define PING_INTERVAL 33
 
 // I2C Address of ATTiny85
 const int I2CAddress = 8;
@@ -20,6 +23,10 @@ const int I2CAddress = 8;
 int distance[3];
 int responseCount = 0;
 unsigned long start;
+
+NewPing SensorLeft (ULTRASONIC_LEFT_PIN, ULTRASONIC_LEFT_PIN, MAX_DISTANCE);
+NewPing SensorMiddle (ULTRASONIC_MIDDLE_PIN, ULTRASONIC_MIDDLE_PIN, MAX_DISTANCE);
+NewPing SensorRight (ULTRASONIC_RIGHT_PIN, ULTRASONIC_RIGHT_PIN, MAX_DISTANCE);
 
 void setup(){
   // Begin I2C Communication
@@ -32,8 +39,22 @@ void loop(){
   readDistances();
 }
 
-void readDistances(){
-  // TODO: Implement Ultrasound sensors
+void readDistance(){
+  distance[SLEFT] = SensorLeft.ping_in();
+  if (distance[SLEFT] > 254 ) {
+    distance[SLEFT] = 254;
+  }
+  delay(PING_INTERVAL);
+  distance[SMIDDLE] = SensorMiddle.ping_in();
+  if (distance[SMIDDLE] > 254 ) {
+    distance[SMIDDLE] = 254;
+  }
+  delay(PING_INTERVAL);
+  distance[SRIGHT] = SensorRight.ping_in();
+  if (distance[SRIGHT] > 254 ) {
+    distance[SRIGHT] = 254;
+  }
+  delay(PING_INTERVAL);
 }
 
 void transmit(){
