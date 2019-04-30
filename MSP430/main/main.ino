@@ -1,3 +1,19 @@
+#include "dht.h"
+
+#define DHT_DEBUG false
+
+// Setup debug printing macros.
+#ifdef DHT_DEBUG
+  #define DEBUG_PRINT(...) { Serial.print(__VA_ARGS__); }
+  #define DEBUG_PRINTLN(...) { Serial.println(__VA_ARGS__); }
+#else
+  #define DEBUG_PRINT(...) {}
+  #define DEBUG_PRINTLN(...) {}
+#endif
+
+// Pin definitions
+#define DHT_PIN P2_3
+
 //Pin numbers definition
 const int motorEnableLeft = 9;
 const int motorForwardLeft = 7;
@@ -85,6 +101,21 @@ void goBack () {
   analogWrite(motorEnableRight, rightMotorSpeed);
 }
 
+float getSpeedOfSound() {
+  dht DHT11(dhtPin);
+  uint8_t rawtemperature, rawhumidity, checksum;
+  checksum = DHT11.readRawData(&rawtemperature, &rawhumidity);
+  if (checksum != 0)
+    return 340.3; //Return default value in case of error with sensor.
+  if(DHT_DEBUG){
+    DEBUG_PRINT("T: ");
+    DEBUG_PRINT(rawtemperature);
+    DEBUG_PRINT(" H: ");
+    DEBUG_PRINT(rawhumidity);
+  }
+  return 331.4 + (0.606 * rawtemperature) + (0.0124 * rawhumidity);
+}
+  
 //Anibal's note: la parte de los sensores lo saque del internet, para tenerlos de una vez. Lo puedes modificar para que funcione con nuestro robot si es necesario
 
 void sensorRead () {
