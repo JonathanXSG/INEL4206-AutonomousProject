@@ -1,6 +1,8 @@
+#include "ADXL.hpp"
 #include "dht.h"
 
 #define DHT_DEBUG false
+#define ADXL_DEBUG true
 
 // Setup debug printing macros.
 #ifdef DHT_DEBUG
@@ -10,9 +12,19 @@
   #define DEBUG_PRINT(...) {}
   #define DEBUG_PRINTLN(...) {}
 #endif
+#ifdef ADXL_DEBUG
+  #define ADXL_DEBUG_PRINT(...) {Serial.print(__VA_ARGS__);}
+  #define ADXL_DEBUG_PRINTLN(...) {Serial.println(__VA_ARGS__);}
+#else
+  #define ADXL_DEBUG_PRINT(...) {}
+  #define ADXL_DEBUG_PRINTLN(...) {}
+#endif
 
 // Pin definitions
 #define DHT_PIN P2_3
+#define ADXL_X_PIN P1_3
+#define ADXL_Y_PIN P1_4
+#define ADXL_Z_PIN P1_5
 
 //Pin numbers definition
 const int motorEnableLeft = 9;
@@ -115,7 +127,28 @@ float getSpeedOfSound() {
   }
   return 331.4 + (0.606 * rawtemperature) + (0.0124 * rawhumidity);
 }
-  
+
+void ADXLRead(){
+  int16_t xValueInit, yValueInit, zValueInit;
+  int16_t xValue, yValue, zValue;
+  boolean init = false;
+  double xGValue, yGValue, zGValue, pitch, roll;
+
+  ADXL sensor(ADXL_X_PIN, ADXL_Y_PIN, ADXL_Z_PIN);
+  if(!init){
+    sensor.readRawData(&xValueInit, &yValueInit, &zValueInit);
+    init = true;
+  }
+  sensor.readRawData(&xValue, &yValue, &zValue);
+
+  ADXL_DEBUG_PRINT("Raw X = ");
+  ADXL_DEBUG_PRINT(xValue-xValueInit);
+  ADXL_DEBUG_PRINT("\tY = ");
+  ADXL_DEBUG_PRINT(yValue-yValueInit);
+  ADXL_DEBUG_PRINT("\tZ = ");
+  ADXL_DEBUG_PRINT(zValue-zValueInit);
+  ADXL_DEBUG_PRINTLN(""); 
+}
 //Anibal's note: la parte de los sensores lo saque del internet, para tenerlos de una vez. Lo puedes modificar para que funcione con nuestro robot si es necesario
 
 void sensorRead () {
