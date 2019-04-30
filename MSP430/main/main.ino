@@ -1,3 +1,4 @@
+#include <Wire.h>
 #include "ADXL.hpp"
 #include "dht.h"
 
@@ -25,6 +26,8 @@
 #define ADXL_X_PIN P1_3
 #define ADXL_Y_PIN P1_4
 #define ADXL_Z_PIN P1_5
+
+const int I2CSlaveAddress = 8;      // I2C Address.
 
 //Pin numbers definition
 const int motorEnableLeft = 9;
@@ -65,6 +68,11 @@ boolean onoff = 0;
 //Control IR numbers (could change)*******
 const long PLAY = 16761405;
 const long PREV = 16720605;
+
+//Variables fro I2C
+int place;
+byte dist[3];
+long entryP = 0;
 
 //Anibal's note: de aqui en adelante estan la programacion basica para las direcciones 
 
@@ -149,6 +157,39 @@ void ADXLRead(){
   ADXL_DEBUG_PRINT(zValue-zValueInit);
   ADXL_DEBUG_PRINTLN(""); 
 }
+
+void RequestATTiny(){
+  while (readTiny(I2CSlaveAddress) < 255) {
+    Serial.println("Waiting for Data..."); // wait for first byte
+  }
+  
+  dist[0] = readTiny(I2CSlaveAddress);
+  dist[1] = readTiny(I2CSlaveAddress);
+  dist[2] = readTiny(I2CSlaveAddress);
+
+  Serial.print("Left ");
+  Serial.print(dist[0]);
+  Serial.print(" ");
+  Serial.print("Middle ");
+  Serial.print(dist[1]);
+  Serial.print(" ");
+  Serial.print("Right ");
+  Serial.print(dist[2]);
+  Serial.print(" ");
+  Serial.println();
+  delay(200);
+}
+
+byte readTiny(int address) {
+  byte byteData ;
+  long entry = millis();
+
+  // Send request for data
+  Wire.requestFrom(address, 1);
+  while (Wire.available() == 0 && (millis() - entry) < 100)  Serial.print("W");
+  if  (millis() - entry < 100) byteData = Wire.read();
+  return byteData;
+}
 //Anibal's note: la parte de los sensores lo saque del internet, para tenerlos de una vez. Lo puedes modificar para que funcione con nuestro robot si es necesario
 
 void sensorRead () {
@@ -180,6 +221,7 @@ void sensorRead () {
 
 
 void setup() {
+   Wire.begin();
   pinMode(motorEnableLeft, OUTPUT);
   pinMode(motorForwardLeft, OUTPUT);
   pinMode(motorBackLeft, OUTPUT);
