@@ -1,7 +1,35 @@
-#include "dht.h"
 #include <Wire.h>
+#include "ADXL.hpp"
+#include "dht.h"
 
-//Motor Pins
+#define DHT_DEBUG false
+#define ADXL_DEBUG true
+
+// Setup debug printing macros.
+#ifdef DHT_DEBUG
+  #define DEBUG_PRINT(...) { Serial.print(__VA_ARGS__); }
+  #define DEBUG_PRINTLN(...) { Serial.println(__VA_ARGS__); }
+#else
+  #define DEBUG_PRINT(...) {}
+  #define DEBUG_PRINTLN(...) {}
+#endif
+#ifdef ADXL_DEBUG
+  #define ADXL_DEBUG_PRINT(...) {Serial.print(__VA_ARGS__);}
+  #define ADXL_DEBUG_PRINTLN(...) {Serial.println(__VA_ARGS__);}
+#else
+  #define ADXL_DEBUG_PRINT(...) {}
+  #define ADXL_DEBUG_PRINTLN(...) {}
+#endif
+
+// Pin definitions
+#define DHT_PIN P2_3
+#define ADXL_X_PIN P1_3
+#define ADXL_Y_PIN P1_4
+#define ADXL_Z_PIN P1_5
+
+const int I2CSlaveAddress = 8;      // I2C Address.
+
+//Pin numbers definition
 const int motorEnableLeft = 9;
 const int motorEnableRight = 11;
 const int motorForwardLeft = 7;
@@ -32,6 +60,12 @@ float za = 0.0;
 float yaw, pitch, roll; //TODO eliminate the ones that are not needed
 float t;
 float v;
+
+//Variables fro I2C
+int place;
+byte dist[3];
+long entryP = 0;
+
 
 //Directions
 void stopCar () {
@@ -78,7 +112,57 @@ float getSpeedOfSound() {
   checksum = DHT11.readRawData(&rawtemperature, &rawhumidity);
   if (checksum != 0)
     return 340.3; //Return default value in case of error with sensor.
+  }
+  if(DHT_DEBUG){
+    DEBUG_PRINT("T: ");
+    DEBUG_PRINT(rawtemperature);
+    DEBUG_PRINT(" H: ");
+    DEBUG_PRINT(rawhumidity);
+  }
   return 331.4 + (0.606 * rawtemperature) + (0.0124 * rawhumidity);
+}
+
+void ADXLRead(){
+  int16_t xValueInit, yValueInit, zValueInit;
+  int16_t xValue, yValue, zValue;
+  boolean init = false;
+  double xGValue, yGValue, zGValue, pitch, roll;
+
+  ADXL sensor(ADXL_X_PIN, ADXL_Y_PIN, ADXL_Z_PIN);
+  if(!init){
+    sensor.readRawData(&xValueInit, &yValueInit, &zValueInit);
+    init = true;
+  }
+  sensor.readRawData(&xValue, &yValue, &zValue);
+
+  ADXL_DEBUG_PRINT("Raw X = ");
+  ADXL_DEBUG_PRINT(xValue-xValueInit);
+  ADXL_DEBUG_PRINT("\tY = ");
+  ADXL_DEBUG_PRINT(yValue-yValueInit);
+  ADXL_DEBUG_PRINT("\tZ = ");
+  ADXL_DEBUG_PRINT(zValue-zValueInit);
+  ADXL_DEBUG_PRINTLN(""); 
+}
+
+void RequestATTiny(){
+  while (readTiny(I2CSlaveAddress) < 255) {
+    Serial.println("Waiting for Data..."); // wait for first byte
+  }
+  
+  dist[0] = readTiny(I2CSlaveAddress);
+  dist[1] = readTiny(I2CSlaveAddress);
+  dist[2] = readTiny(I2CSlaveAddress);
+
+  Serial.print("Left ");
+  Serial.print(dist[0]);
+  Serial.print(" ");
+  Serial.print("Middle ");
+  Serial.print(dist[1]);
+  Serial.print(" ");
+  Serial.print("Right ");
+  Serial.print(dist[2]);
+  Serial.print(" ");
+  Serial.println();
 }
 
 float readTiny(int address) {
@@ -136,9 +220,6 @@ void setup() {
   pinMode(motorForwardRight, OUTPUT);
   pinMode(motorBackRight, OUTPUT);
 
-  while (readTiny(I2CSlaveAddress) < 255) {
-    //Wait for initial data.
-  }
   t = millis() / 1000.0;
   sensorRead();
 }
