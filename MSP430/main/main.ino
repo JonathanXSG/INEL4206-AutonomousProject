@@ -30,23 +30,31 @@
 #endif
 
 // Pin definitions
-#define DHT_PIN P2_3
+#define DHT_PIN P1_0
 #define ADXL_X_PIN P1_3
 #define ADXL_Y_PIN P1_4
 #define ADXL_Z_PIN P1_5
 
+//#define MOTOR_L_BCK P2_3
+//#define MOTOR_L_FRW P2_4
+//#define MOTOR_L_ENABLE P2_5
+//#define MOTOR_R_ENABLE P1_6
+//#define MOTOR_R_FRW P1_7
+//#define MOTOR_L_BCK P2_7
+
 const int I2CSlaveAddress = 8;      // I2C Address.
 
 //Pin numbers definition
-const int motorEnableLeft = 9;
-const int motorEnableRight = 11;
-const int motorForwardLeft = 7;
-const int motorBackLeft = 8;
-const int motorForwardRight = 12;
-const int motorBackRight = 10;
+const int motorBackLeft = 11;
+const int motorForwardLeft = 12;
+const int motorEnableLeft = 13;
+const int motorEnableRight = 14;
+const int motorForwardRight = 15;
+const int motorBackRight = 18;
+
 //Motor Variables
-int leftMotorSpeed = 160;
-int rightMotorSpeed = 255;
+int leftMotorSpeed = 150;
+int rightMotorSpeed = 150;
 const float maxSpeed = 2.0;
 const float minSpeed = 1.0;
 const float delayTime = 1.0;
@@ -73,7 +81,7 @@ void stopCar () {
   analogWrite(motorEnableRight, 0);
 }
 
-void goForwardFull () {
+void goForward () {
   stopCar();
   digitalWrite(motorForwardLeft, HIGH);
   digitalWrite(motorForwardRight, HIGH);
@@ -84,12 +92,16 @@ void goForwardFull () {
 void goLeft () {
   stopCar();
   digitalWrite(motorForwardRight, HIGH);
+  digitalWrite(motorBackLeft, HIGH);
+  analogWrite(motorEnableLeft, rightMotorSpeed);
   analogWrite(motorEnableRight, rightMotorSpeed);
 }
 
 void goRight () {
   stopCar();
   digitalWrite(motorForwardLeft, HIGH);
+  digitalWrite(motorBackRight, HIGH);
+  analogWrite(motorEnableRight, rightMotorSpeed);
   analogWrite(motorEnableLeft, leftMotorSpeed);
 }
 
@@ -108,12 +120,12 @@ float getSpeedOfSound() {
   checksum = DHT11.readRawData(&rawtemperature, &rawhumidity);
   if (checksum != 0)
     return 340.3; //Return default value in case of error with sensor.
-    
   if(DHT_DEBUG){
     DEBUG_PRINT("T: ");
     DEBUG_PRINT(rawtemperature);
     DEBUG_PRINT(" H: ");
     DEBUG_PRINT(rawhumidity);
+    DEBUG_PRINTLN();
   }
   return 331.4 + (0.606 * rawtemperature) + (0.0124 * rawhumidity);
 }
@@ -189,21 +201,31 @@ void updateGyro() {
   roll = atan2(ya, za) * 57.29577951 + 180;
   pitch = atan2(za, xa) * 57.29577951 + 180;
   yaw = atan2(xa, ya) * 57.29577951 + 180;
+
+  ADXL_DEBUG_PRINT("Raw X = ");
+  ADXL_DEBUG_PRINT(svx);
+  ADXL_DEBUG_PRINT("\tY = ");
+  ADXL_DEBUG_PRINT(svy);
+  ADXL_DEBUG_PRINT("\tZ = ");
+  ADXL_DEBUG_PRINT(svz);
+  ADXL_DEBUG_PRINTLN(""); 
 }
 
 void fixSpeed() {
   if (v > maxSpeed) {
     leftMotorSpeed -= 5;
     rightMotorSpeed -= 5;
-  } else if (v < minSpeed) {
+  }
+  else if (v < minSpeed && leftMotorSpeed <= 250) {
     leftMotorSpeed += 5;
     rightMotorSpeed += 5;
   }
 }
-
 //Main
 void setup() {
   Wire.begin();
+  Serial.begin(9600);
+  analogFrequency(800);
   pinMode(motorEnableLeft, OUTPUT);
   pinMode(motorForwardLeft, OUTPUT);
   pinMode(motorBackLeft, OUTPUT);
@@ -216,6 +238,7 @@ void setup() {
 }
 
 void loop() {
+  updateGyro();
   requestATTiny();
   fixSpeed();
   if ((distanceFront <= minFrontDistance) || (distanceLeft <= minSideDistance) || (distanceRight <= minSideDistance)) {
@@ -237,5 +260,5 @@ void loop() {
     }
   }
   else
-    goForwardFull();
+    goForward();
 }
