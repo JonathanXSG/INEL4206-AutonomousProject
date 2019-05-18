@@ -53,17 +53,17 @@ const int motorForwardRight = 15;
 const int motorBackRight = 18;
 
 //Motor Variables
-int leftMotorSpeed = 150;
-int rightMotorSpeed = 150;
+int leftMotorSpeed = 250;
+int rightMotorSpeed = 230;
 const float maxSpeed = 2.0;
 const float minSpeed = 1.0;
-const float delayTime = 1.0;
+const float delayTime = 100;
 
 //Sensor Varibles
 float distanceFront, distanceLeft, distanceRight;
-const int minFrontDistance = 30;
-const int minSideDistance = 20;
-const int stuckDistance = 10;
+const int minFrontDistance = 15;
+const int minSideDistance = 7;
+const int stuckDistance = 5;
 float xa = 0.0;
 float ya = 0.0;
 float za = 0.0;
@@ -92,16 +92,16 @@ void goForward () {
 void goLeft () {
   stopCar();
   digitalWrite(motorForwardRight, HIGH);
-  digitalWrite(motorBackLeft, HIGH);
-  analogWrite(motorEnableLeft, rightMotorSpeed);
+//  digitalWrite(motorBackLeft, HIGH);
+//  analogWrite(motorEnableLeft, rightMotorSpeed);
   analogWrite(motorEnableRight, rightMotorSpeed);
 }
 
 void goRight () {
   stopCar();
   digitalWrite(motorForwardLeft, HIGH);
-  digitalWrite(motorBackRight, HIGH);
-  analogWrite(motorEnableRight, rightMotorSpeed);
+//  digitalWrite(motorBackRight, HIGH);
+//  analogWrite(motorEnableRight, rightMotorSpeed);
   analogWrite(motorEnableLeft, leftMotorSpeed);
 }
 
@@ -157,12 +157,12 @@ void requestATTiny(){
     I2C_DEBUG_PRINTLN("Waiting for Data..."); // wait for first byte
   }
   float s = getSpeedOfSound();
-  distanceLeft  = readTiny(I2CSlaveAddress) * s;
-  distanceFront = readTiny(I2CSlaveAddress) * s;
-  distanceRight = readTiny(I2CSlaveAddress) * s;
+  distanceLeft  = readTiny(I2CSlaveAddress);
+  distanceFront = readTiny(I2CSlaveAddress);
+  distanceRight = readTiny(I2CSlaveAddress);
   
-  updateGyro();
-  v = v + xa * (t - (millis() / 1000.0)); // TODO verify that this is xa
+//  updateGyro();
+//  v = v + xa * (t - (millis() / 1000.0)); // TODO verify that this is xa
   t = millis() / 1000.0;
 
   I2C_DEBUG_PRINT("Left ");
@@ -232,33 +232,46 @@ void setup() {
   pinMode(motorEnableRight, OUTPUT);
   pinMode(motorForwardRight, OUTPUT);
   pinMode(motorBackRight, OUTPUT);
-
+  Serial.println("hello");
   t = millis() / 1000.0;
   requestATTiny();
 }
 
 void loop() {
-  updateGyro();
+//  updateGyro();
   requestATTiny();
-  fixSpeed();
-  if ((distanceFront <= minFrontDistance) || (distanceLeft <= minSideDistance) || (distanceRight <= minSideDistance)) {
-    if ((distanceLeft < stuckDistance) || (distanceRight < stuckDistance) || (distanceFront < stuckDistance)) {
-      goBack();
+  
+//  fixSpeed();
+  if(millis() < 20000){
+    if ((distanceFront <= minFrontDistance && distanceFront !=0 )
+    || (distanceLeft <= minSideDistance && distanceFront !=0)
+    || (distanceRight <= minSideDistance && distanceFront !=0)){
+    if ((distanceLeft < stuckDistance) || (distanceRight < stuckDistance) ||  (distanceFront < stuckDistance)) {
+      stopCar();
       delay(1.5 * delayTime);
+      requestATTiny();
     }
-    else if ((distanceFront <= minFrontDistance) && (distanceLeft <= minSideDistance) && (distanceRight <= minSideDistance)) {
-      goBack();
-      delay(1.5 * delayTime);
+    else if (distanceLeft <= minSideDistance) {
+      while(distanceLeft < 18){
+        goLeft();
+        delay(delayTime);
+        requestATTiny();
+      }
     }
-    else if (distanceLeft > distanceRight ) {
-      goLeft();
-      delay(delayTime);
-    }
-    else {
-      goRight();
-      delay(delayTime);
+    else if(distanceRight <= minSideDistance) {
+       while(distanceRight < 18){
+        goRight();
+        delay(delayTime);
+        requestATTiny();
+      }
     }
   }
   else
     goForward();
+    delay(delayTime);
+  }
+  else{
+    delay(10000);
+    stopCar();
+  }
 }
